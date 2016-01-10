@@ -99,13 +99,22 @@ Invoke-WebRequest https://raw.githubusercontent.com/jmdevince/SpamassassinAgent/
 Invoke-WebRequest https://raw.githubusercontent.com/jmdevince/SpamassassinAgent/master/etc/SpamassassinConfig.xml -OutFile "C:\CustomAgents\SpamassassinAgentData\SpamassassinConfig.xml"
 
 # Connect to the exchange Server
-. 'C:\Program Files\Microsoft\Exchange Server\V14\bin\RemoteExchange.ps1'
+. 'C:\Program Files\Microsoft\Exchange Server\V15\bin\RemoteExchange.ps1'
 Connect-ExchangeServer -auto
 
 # Install the Transport Agent
 Install-TransportAgent -Name "SpamAssassin Agent" -AssemblyPath C:\CustomAgents\SpamassassinAgent.dll -TransportAgentFactory SpamassassinAgent.SpamassassinAgentFactory
 Enable-TransportAgent "Spamassassin Agent"
 Set-TransportAgent "Spamassassin Agent" -Priority 3
+
+# Install Anti-Spam Functionality
+. 'C:\Program Files\Microsoft\Exchange Server\V15\Scripts\Install-AntiSpamAgents.ps1'
+
+# Disable Existing Anti-Spam Functionality
+Set-ContentFilterConfig -Enable $false
+Set-SenderFilterConfig -Enable $false
+Set-SenderIDConfig -Enable $false
+Set-SenderReputationConfig -Enable $false
 
 # Restart 
 Restart-Service MSExchangeTransport
