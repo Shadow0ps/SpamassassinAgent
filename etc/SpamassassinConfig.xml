@@ -1,0 +1,9 @@
+<?xml version="1.0" ?> 
+<SpamassassinSettings>
+	<SpamassassinPath>C:\Program Files (x86)\SpamAssassin\spamc.exe</SpamassassinPath>
+	<SpamassassinArgs></SpamassassinArgs>
+	<RejectThreshold>10</RejectThreshold>
+	<LogLevel>2</LogLevel>	
+	<MaxMessageSize>104857600</MaxMessageSize>
+	<SkipRecievedHeaders>1</SkipRecievedHeaders>
+</SpamassassinSettings>
