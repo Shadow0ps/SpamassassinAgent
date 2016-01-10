@@ -1,0 +1,246 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>SpamassassinAgent</name>
+    </assembly>
+    <members>
+        <member name="T:SpamassassinAgent.AgentLogger">
+            <summary>
+            Simple Logging class for Exchange Transport Agents
+            </summary>
+        </member>
+        <member name="F:SpamassassinAgent.AgentLogger.path">
+            <summary>
+            Path to save the log file to
+            </summary>
+        </member>
+        <member name="F:SpamassassinAgent.AgentLogger.maxlevel">
+            <summary>
+            Maximum level we want to log anything above this gets discarded
+            </summary>
+        </member>
+        <member name="F:SpamassassinAgent.AgentLogger.buf">
+            <summary>
+            Buffer for storing logs
+            </summary>
+        </member>
+        <member name="M:SpamassassinAgent.AgentLogger.#ctor(System.String,System.Int16)">
+            <summary>
+            New AgentLogger
+            </summary>
+            <param name="path">Path to save log file to</param>
+            <param name="level">Maximum log level to save</param>
+        </member>
+        <member name="M:SpamassassinAgent.AgentLogger.debug(System.String,System.String,System.Int32)">
+            <summary>
+            Shortcut for log(message, AgentLogger.Debug)
+            </summary>
+            <param name="message"></param>
+            <param name="callingFilePath"></param>
+            <param name="callingFileLineNumber"></param>
+        </member>
+        <member name="M:SpamassassinAgent.AgentLogger.info(System.String,System.String,System.Int32)">
+            <summary>
+            Shortcut for log(message, AgentLogger.Info)
+            </summary>
+            <param name="message"></param>
+            <param name="callingFilePath"></param>
+            <param name="callingFileLineNumber"></param>
+        </member>
+        <member name="M:SpamassassinAgent.AgentLogger.warning(System.String,System.String,System.Int32)">
+            <summary>
+            Shortcut for log(message, AgentLogger.Warning)
+            </summary>
+            <param name="message"></param>
+            <param name="callingFilePath"></param>
+            <param name="callingFileLineNumber"></param>
+        </member>
+        <member name="M:SpamassassinAgent.AgentLogger.error(System.String,System.String,System.Int32)">
+            <summary>
+            Shortcut for log(message, AgentLogger.Error)
+            </summary>
+            <param name="message"></param>
+            <param name="callingFilePath"></param>
+            <param name="callingFileLineNumber"></param>
+        </member>
+        <member name="M:SpamassassinAgent.AgentLogger.fatal(System.String,System.String,System.Int32)">
+            <summary>
+            Shortcut for log(message, AgentLogger.Fatal)
+            </summary>
+            <param name="message"></param>
+            <param name="callingFilePath"></param>
+            <param name="callingFileLineNumber"></param>
+        </member>
+        <member name="M:SpamassassinAgent.AgentLogger.log(System.String,System.Int16,System.String,System.Int32)">
+            <summary>
+            Shortcut for log(message, AgentLogger.debug)
+            </summary>
+            <param name="message">Message to log</param>
+            <param name="level">Level for this log line</param>
+            <param name="callingFilePath">Calling method file (populated by shortcuts)</param>
+            <param name="callingFileLineNumber">Calling file line (populated by shortcuts)</param>
+        </member>
+        <member name="M:SpamassassinAgent.AgentLogger.flush">
+            <summary>
+            Flush the buffer to a file and then clear the buffer
+            </summary>
+        </member>
+        <member name="T:SpamassassinAgent.SpamassassinAgentFactory">
+            <summary>
+            Agent Factory for SpamAssassin
+            </summary>
+        </member>
+        <member name="F:SpamassassinAgent.SpamassassinAgentFactory.RelativeDataPath">
+            <summary>
+            Directory for storing the data relative to the DLL
+            </summary>
+        </member>
+        <member name="F:SpamassassinAgent.SpamassassinAgentFactory.ConfigFileName">
+            <summary>
+            Configuration filename for GreyList Configuration
+            </summary>
+        </member>
+        <member name="F:SpamassassinAgent.SpamassassinAgentFactory.LogFile">
+            <summary>
+            Log filename for logging
+            </summary>
+        </member>
+        <member name="F:SpamassassinAgent.SpamassassinAgentFactory.spamassassinSettings">
+            <summary>
+            GreyList Settings
+            </summary>
+        </member>
+        <member name="F:SpamassassinAgent.SpamassassinAgentFactory.dataPath">
+            <summary>
+            Will contain the absolute path for RelativeDataPath
+            </summary>
+        </member>
+        <member name="M:SpamassassinAgent.SpamassassinAgentFactory.#ctor">
+            <summary>
+            Agent Factory
+            </summary>
+        </member>
+        <member name="M:SpamassassinAgent.SpamassassinAgentFactory.CreateAgent(Microsoft.Exchange.Data.Transport.SmtpServer)">
+            <summary>
+            Spawn an SMTP recieve agent
+            </summary>
+            <param name="server">Exchange SmtpServer resource</param>
+            <returns>Spawned Agent</returns>
+        </member>
+        <member name="T:SpamassassinAgent.SpamassassinAgent">
+            <summary>
+            Main class for SpamassassinAgent
+            </summary>
+        </member>
+        <member name="F:SpamassassinAgent.SpamassassinAgent.settings">
+            <summary>
+            Populated Spamassassin Settings
+            </summary>
+        </member>
+        <member name="F:SpamassassinAgent.SpamassassinAgent.dataPath">
+            <summary>
+            Absolute data path for storing the agent data
+            </summary>
+        </member>
+        <member name="F:SpamassassinAgent.SpamassassinAgent.logger">
+            <summary>
+            Logging object
+            </summary>
+        </member>
+        <member name="M:SpamassassinAgent.SpamassassinAgent.#ctor(SpamassassinAgent.SpamassassinSettings,System.String,System.String)">
+            <summary>
+            Initializer for SpamassassinAgent
+            </summary>
+            <param name="settings"></param>
+            <param name="dataPath"></param>
+            <param name="logPath"></param>
+        </member>
+        <member name="M:SpamassassinAgent.SpamassassinAgent.OnEndOfDataHandler(Microsoft.Exchange.Data.Transport.Smtp.ReceiveEventSource,Microsoft.Exchange.Data.Transport.Smtp.EndOfDataEventArgs)">
+            <summary>
+            Handles processing the message once the end of the DATA SMTP stream is sent.
+            </summary>
+            <param name="source"></param>
+            <param name="eodArgs"></param>
+        </member>
+        <member name="M:SpamassassinAgent.SpamassassinAgent.ReadFully(System.IO.Stream)">
+            <summary>
+            Reads a Stream completely into a byte array
+            </summary>
+            <param name="input">Stream to read from</param>
+            <returns></returns>
+        </member>
+        <member name="T:SpamassassinAgent.SpamassassinSettings">
+            <summary>
+            Interfaces Spamassassin Agent to a settings XML
+            </summary>
+        </member>
+        <member name="F:SpamassassinAgent.SpamassassinSettings.spamassassinPath">
+            <summary>
+            Path to SpamAssassin
+            </summary>
+        </member>
+        <member name="F:SpamassassinAgent.SpamassassinSettings.spamassassinArgs">
+            <summary>
+            Args for SpamAssassin
+            </summary>
+        </member>
+        <member name="F:SpamassassinAgent.SpamassassinSettings.rejectThreshold">
+            <summary>
+            Threshold for rejection.
+            </summary>
+        </member>
+        <member name="M:SpamassassinAgent.SpamassassinSettings.#ctor(System.String)">
+            <summary>
+            An empty constructor initializes with default values.
+            </summary>
+            <param name="path">The path to an XML file that contains the settings.</param>
+        </member>
+        <member name="M:SpamassassinAgent.SpamassassinSettings.#ctor(SpamassassinAgent.SpamassassinSettings)">
+            <summary>
+            Clone SpamAsssassinSettings from another object
+            </summary>
+            <param name="other">clone from</param>
+        </member>
+        <member name="M:SpamassassinAgent.SpamassassinSettings.ReadXMLConfig(System.String)">
+            <summary>
+            Reads in configuration options from an XML file and sets the instance
+            variables to the corresponding values that are read in if they
+            are valid. If an invalid value is found, or a value is not
+            set in the XML file, the variable will not be changed from its
+            default value.
+            </summary>
+            <param name="path">The path to the XML configuration file.</param>
+            <returns>True if the file was read.</returns>
+        </member>
+        <member name="P:SpamassassinAgent.SpamassassinSettings.SpamassassinPath">
+            <summary>
+            Path to Spamassassin Executable (spamc.exe)
+            </summary>
+        </member>
+        <member name="P:SpamassassinAgent.SpamassassinSettings.SpamassassinArgs">
+            <summary>
+            Additional Arguments to pass to the Spamassassin Executable
+            </summary>
+        </member>
+        <member name="P:SpamassassinAgent.SpamassassinSettings.RejectThreshold">
+            <summary>
+            Reject Messages above this threshold
+            </summary>
+        </member>
+        <member name="P:SpamassassinAgent.SpamassassinSettings.MaxMessageSize">
+            <summary>
+            Maximum size of messages to scan
+            </summary>
+        </member>
+        <member name="P:SpamassassinAgent.SpamassassinSettings.SkipRecieved">
+            <summary>
+            Skip these number of Recieved headers
+            </summary>
+        </member>
+        <member name="P:SpamassassinAgent.SpamassassinSettings.LogLevel">
+            <summary>
+            Maximum log level to log
+            </summary>
+        </member>
+    </members>
+</doc>

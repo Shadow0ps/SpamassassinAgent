@@ -6,6 +6,9 @@
     using System.Text;
     using System.Xml;
 
+    /// <summary>
+    /// Interfaces Spamassassin Agent to a settings XML
+    /// </summary>
     public class SpamassassinSettings
     {
         /// <summary>
@@ -54,6 +57,10 @@
             this.ReadXMLConfig(path);
         }
 
+        /// <summary>
+        /// Clone SpamAsssassinSettings from another object
+        /// </summary>
+        /// <param name="other">clone from</param>
         public SpamassassinSettings(SpamassassinSettings other)
         {
             this.SpamassassinPath = other.SpamassassinPath;
@@ -62,6 +69,9 @@
             this.MaxMessageSize = other.MaxMessageSize;
         }
 
+        /// <summary>
+        /// Path to Spamassassin Executable (spamc.exe)
+        /// </summary>
         public String SpamassassinPath
         {
             get { return this.spamassassinPath; }
@@ -69,6 +79,9 @@
             set { this.spamassassinPath = value; }
         }
 
+        /// <summary>
+        /// Additional Arguments to pass to the Spamassassin Executable
+        /// </summary>
         public String SpamassassinArgs
         {
             get { return this.spamassassinArgs; }
@@ -76,6 +89,9 @@
             set { this.spamassassinArgs = value; }
         }
 
+        /// <summary>
+        /// Reject Messages above this threshold
+        /// </summary>
         public Double RejectThreshold
         {
             get { return this.rejectThreshold; }
@@ -83,17 +99,28 @@
             set { this.rejectThreshold = value; }
         }
 
+        /// <summary>
+        /// Maximum size of messages to scan
+        /// </summary>
         public long MaxMessageSize
         {
             get { return this.maxMessageSize; }
 
             set { this.maxMessageSize = value; }
         }
+
+        /// <summary>
+        /// Skip these number of Recieved headers
+        /// </summary>
         public int SkipRecieved
         {
             get { return this.skipRecieved; }
             set { this.skipRecieved = value; }
         }
+
+        /// <summary>
+        /// Maximum log level to log
+        /// </summary>
         public int LogLevel
         {
             get { return this.logLevel; }

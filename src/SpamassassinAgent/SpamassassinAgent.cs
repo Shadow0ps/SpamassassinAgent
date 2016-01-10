@@ -13,6 +13,9 @@
     using System.Threading;
 
 
+    /// <summary>
+    /// Agent Factory for SpamAssassin
+    /// </summary>
     public class SpamassassinAgentFactory : SmtpReceiveAgentFactory
     {
         /// <summary>
@@ -40,45 +43,81 @@
         /// </summary>
         private string dataPath;
 
+        /// <summary>
+        /// Agent Factory
+        /// </summary>
         public SpamassassinAgentFactory()
         {
+            // Get the current location of where this agent is executing from
             Assembly currAssembly = Assembly.GetAssembly(this.GetType());
             string assemblyPath = Path.GetDirectoryName(currAssembly.Location);
             this.dataPath = Path.Combine(assemblyPath, RelativeDataPath);
 
+            // If the data directory doesn't exist ...
             if (!Directory.Exists(this.dataPath))
             {
+                // ... Create it
                 Directory.CreateDirectory(this.dataPath);
             }
-
+            // Fetch SpamassassinAgent settings
             this.spamassassinSettings = new SpamassassinSettings(Path.Combine(this.dataPath, ConfigFileName));
         }
 
+        /// <summary>
+        /// Spawn an SMTP recieve agent
+        /// </summary>
+        /// <param name="server">Exchange SmtpServer resource</param>
+        /// <returns>Spawned Agent</returns>
         public override SmtpReceiveAgent CreateAgent(SmtpServer server)
         {
-            return new SpamassassinAgent(server, this.spamassassinSettings, this.dataPath, Path.Combine(this.dataPath, LogFile));
+            return new SpamassassinAgent(this.spamassassinSettings, this.dataPath, Path.Combine(this.dataPath, LogFile));
         }
     }
 
+    /// <summary>
+    /// Main class for SpamassassinAgent
+    /// </summary>
     public class SpamassassinAgent : SmtpReceiveAgent
     {
 
-        private SmtpServer server;
+        /// <summary>
+        /// Populated Spamassassin Settings
+        /// </summary>
         private SpamassassinSettings settings;
+
+        /// <summary>
+        /// Absolute data path for storing the agent data
+        /// </summary>
         private String dataPath;
+
+        /// <summary>
+        /// Logging object
+        /// </summary>
         private AgentLogger logger;
 
-        public SpamassassinAgent(SmtpServer server, SpamassassinSettings settings, String dataPath, String logPath)
+        /// <summary>
+        /// Initializer for SpamassassinAgent
+        /// </summary>
+        /// <param name="settings"></param>
+        /// <param name="dataPath"></param>
+        /// <param name="logPath"></param>
+        public SpamassassinAgent(SpamassassinSettings settings, String dataPath, String logPath)
         {
-            this.server = server;
             this.settings = settings;
             this.dataPath = dataPath;
+
+            // Spawn a new logger
             this.logger = new AgentLogger(logPath, (short)this.settings.LogLevel);
+
             // Register an OnEndOfData event handler.
             this.OnEndOfData += new EndOfDataEventHandler(this.OnEndOfDataHandler);
         }
 
-        // The OnEndOfDataHandler method is invoked when the entire message has been received.
+        /// <summary>
+        /// Handles processing the message once the end of the DATA SMTP stream is sent.
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="eodArgs"></param>
         public void OnEndOfDataHandler(ReceiveEventSource source, EndOfDataEventArgs eodArgs)
         {
             Byte[] newlineNeedle = Encoding.ASCII.GetBytes("\n");
@@ -86,18 +125,23 @@
             Byte[] discardFlag = Encoding.ASCII.GetBytes("X-Spam-Discard: YES\n");
             Byte[] recievedNeedle = Encoding.ASCII.GetBytes("Received: ");
             Byte[] indentedLineNeedle = Encoding.ASCII.GetBytes(" ");
-            Double score = 0.0;
+            Nullable<Double> score = null;
 
-            this.logger.log("OnEndOfDataHandler Called", AgentLogger.Debug);
+            this.logger.debug("OnEndOfDataHandler Called");
+
+            // Wrap everything in a Try. This makes sure that even if something fails the message still passes through
             try
             {
-                this.logger.log("OnEndOfDataHandler Info: FROM=" + eodArgs.MailItem.FromAddress.ToString() + ", REMOTE=" + eodArgs.SmtpSession.RemoteEndPoint.Address.ToString(), AgentLogger.Info);
+                this.logger.info("OnEndOfDataHandler Info: FROM=" + eodArgs.MailItem.FromAddress.ToString() + ", REMOTE=" + eodArgs.SmtpSession.RemoteEndPoint.Address.ToString());
+
                 // Check to make sure SpamAssassin exists at the path it's supposed to
                 if (!System.IO.File.Exists(this.settings.SpamassassinPath))
                 {
-                    this.logger.log("Spamassassin does not exist at path: '" + this.settings.SpamassassinPath + "'. Bypassing.", AgentLogger.Fatal);
+                    this.logger.fatal("Spamassassin does not exist at path: '" + this.settings.SpamassassinPath + "'. Bypassing.");
+                    this.logger.flush();
                     return;
                 }
+
                 // Check to see if this is an internal message
                 if (!eodArgs.SmtpSession.IsExternalConnection)
                 {
@@ -105,25 +149,27 @@
                     {
                         if (recipient.Address.LocalPart.IndexOf("HealthMailbox") == 0)
                         {
-                            this.logger.log("Health Mailbox found in recipients. Bypassing.", AgentLogger.Info);
-                            return;
+                            this.logger.info("Health Mailbox found in recipients. Bypassing.");
+                            this.logger.flush();
                         }
                     }
-                    this.logger.log("Internal Connection Found. Bypassing.", AgentLogger.Info);
-                    return;
+                    this.logger.info("Internal Connection Found. Bypassing.");
+                    this.logger.flush();
                 }
+
                 // Is the message too big?
                 if (eodArgs.MailItem.MimeStreamLength > this.settings.MaxMessageSize)
                 {
-                    this.logger.log("Message is too large. Increase MaxMessageSize to scan larger messages. MAXSIZE=" + this.settings.MaxMessageSize.ToString() + ", MESSAGESIZE=" + eodArgs.MailItem.MimeStreamLength.ToString(), AgentLogger.Warning);
-                    return;
+                    this.logger.warning("Message is too large. Increase MaxMessageSize to scan larger messages. MAXSIZE=" + this.settings.MaxMessageSize.ToString() + ", MESSAGESIZE=" + eodArgs.MailItem.MimeStreamLength.ToString());
+                    this.logger.flush();
                 }
+
                 // Get the message stream
                 Stream message = eodArgs.MailItem.GetMimeReadStream();
                 List<Byte> messageBytes = new List<Byte>(ReadFully(message));
                 byte[] messageByteArray = messageBytes.ToArray();
                 message.Close();
-                this.logger.log("Message Stream Retrieved. BYTES=" + messageByteArray.Length.ToString(), AgentLogger.Debug);
+                this.logger.debug("Message Stream Retrieved. BYTES=" + messageByteArray.Length.ToString());
 
                 // Skip the top number of recieved lines
                 int linestart = 0;
@@ -131,26 +177,27 @@
                 int linestartmatch = 0;
                 for (int i = 0; i < this.settings.SkipRecieved; i++)
                 {
-                    this.logger.log("Skipping #" + i.ToString() + " Recieved line", AgentLogger.Debug);
+                    this.logger.debug("Skipping #" + i.ToString() + " Recieved line");
                     // Find the first instance of the Recieved header
                     linestart = ByteSearch.Locate(messageByteArray, recievedNeedle, 0);
                     // Loop until we find a line that doesn't start with a space.
                     do
                     {
                         lineend = ByteSearch.Locate(messageByteArray, newlineNeedle, linestart);
-                        this.logger.log("Located Line End: " + lineend.ToString(), AgentLogger.Debug);
+                        this.logger.debug("Located Line End: " + lineend.ToString());
                         linestartmatch = ByteSearch.Locate(messageByteArray, indentedLineNeedle, lineend);
-                        this.logger.log("Located LineStartMatch:" + linestartmatch.ToString(), AgentLogger.Debug);
-                        this.logger.log("Bytes between: " + BitConverter.ToString(messageBytes.GetRange(lineend, 5).ToArray()), AgentLogger.Debug);
+                        this.logger.debug("Located LineStartMatch:" + linestartmatch.ToString());
                         messageBytes.RemoveRange(linestart, lineend - linestart + 1);
                         messageByteArray = messageBytes.ToArray();
+
                     } while (linestartmatch == lineend + 1);
-                    this.logger.log("Finished Skipping #" + i.ToString(), AgentLogger.Debug);
+
+                    this.logger.debug("Finished Skipping #" + i.ToString());
 
                 }
 
                 // Run spamassassin while piping stdin/stdout
-                this.logger.log("Starting SpamAssassin Process. PATH='" + this.settings.SpamassassinPath + "', ARGS='" + this.settings.SpamassassinArgs + "'", AgentLogger.Debug);
+                this.logger.debug("Starting SpamAssassin Process. PATH='" + this.settings.SpamassassinPath + "', ARGS='" + this.settings.SpamassassinArgs + "'");
                 Process spamassassin = new Process();
                 spamassassin.StartInfo.UseShellExecute = false;
                 spamassassin.StartInfo.FileName = this.settings.SpamassassinPath;
@@ -160,101 +207,102 @@
                 spamassassin.StartInfo.RedirectStandardOutput = true;
                 spamassassin.StartInfo.RedirectStandardError = true;
                 spamassassin.Start();
-                this.logger.log("Started SpamAssassin Process. PID='" + spamassassin.Id.ToString() + "'", AgentLogger.Debug);
+                this.logger.debug("Started SpamAssassin Process. PID='" + spamassassin.Id.ToString() + "'");
 
                 // Copy the message into stdio using a byte for byte copy
-                this.logger.log("Copying message to Spamassassin. BYTES=" + messageByteArray.Length.ToString(), AgentLogger.Debug);
+                this.logger.debug("Copying message to Spamassassin. BYTES=" + messageByteArray.Length.ToString());
                 spamassassin.StandardInput.BaseStream.Write(messageByteArray, 0, messageByteArray.Length);
-                this.logger.log("Flushing STDIN.", AgentLogger.Debug);
                 spamassassin.StandardInput.BaseStream.Flush();
-                this.logger.log("Closing STDIN.", AgentLogger.Debug);
                 spamassassin.StandardInput.BaseStream.Close();
-                this.logger.log("Closed STDIN.", AgentLogger.Debug);
 
                 // Read the entire output buffer, put it into a list for easy manipulation
-                this.logger.log("Reading STDOUT from spamassassin.", AgentLogger.Debug);
                 List<Byte> outBytes = new List<Byte>(ReadFully(spamassassin.StandardOutput.BaseStream));
-                this.logger.log("Read STDOUT. BYTES=" + outBytes.Count.ToString(), AgentLogger.Debug);
+                this.logger.debug("Read STDOUT from spamassassin. BYTES=" + outBytes.Count.ToString());
                 spamassassin.StandardOutput.BaseStream.Close();
-                this.logger.log("Closed STDOUT.", AgentLogger.Debug);
 
                 // Read the entire stderr buffer, place it in a file if there's anything to it
-                this.logger.log("Reading STDERR from spamassassin.", AgentLogger.Debug);
                 Byte[] outErrorBytes = ReadFully(spamassassin.StandardError.BaseStream);
-                this.logger.log("Read STDERR. BYTES=" + outErrorBytes.Length.ToString(), AgentLogger.Debug);
+                this.logger.debug("Read STDERR from spamassassin. BYTES=" + outErrorBytes.Length.ToString());
                 if (outErrorBytes.Length > 0)
                 {
-                    this.logger.log("Error From SpamAssassin: " + outErrorBytes.ToString(), AgentLogger.Error);
+                    this.logger.error("Error From SpamAssassin: " + outErrorBytes.ToString());
                 }
                 spamassassin.StandardError.BaseStream.Close();
-                this.logger.log("Closed STDERR.", AgentLogger.Debug);
 
                 // Wait for process to exit
-                this.logger.log("Waiting for spamassassin to exist.", AgentLogger.Debug);
                 spamassassin.WaitForExit();
-                this.logger.log("Spamassassin Exited.", AgentLogger.Debug);
 
                 // Find a header
+                int flagStart = ByteSearch.Locate(outBytes.ToArray(), scoreNeedle, 0);
+                int scoreEnd = -1;
+                int scoreStart = 0;
 
-
-                Int32 flagStart = ByteSearch.Locate(outBytes.ToArray(), scoreNeedle, 0);
+                // Check if we found the start of the header
                 if (flagStart > -1)
                 {
-                    Int32 scoreStart = flagStart + scoreNeedle.Length;
-                    Int32 scoreEnd = ByteSearch.Locate(outBytes.ToArray(), newlineNeedle, scoreStart);
-                    if (scoreEnd > -1)
+                    scoreStart = flagStart + scoreNeedle.Length;
+                    scoreEnd = ByteSearch.Locate(outBytes.ToArray(), newlineNeedle, scoreStart);
+                } else {
+                    this.logger.warning("Could not find start of score in message.");
+                }
+
+                // Check if we found the end of the header
+                if (scoreEnd > -1)
+                {
+                    Byte[] scoreBytes = outBytes.GetRange(scoreStart, scoreEnd - scoreStart).ToArray();
+                    try
                     {
-                        Byte[] scoreBytes = outBytes.GetRange(scoreStart, scoreEnd - scoreStart).ToArray();
-                        try
-                        {
-                            score = Double.Parse(new String(scoreBytes.Select(b => (Char)b).ToArray()).Trim());
-                        }
-                        catch
-                        {
-
-                            // Do nothing
-                        }
-                        if (score >= this.settings.RejectThreshold)
-                        {
-                            this.logger.log("Score(" + score.ToString() + ") above threshold(" + this.settings.RejectThreshold.ToString() + "), flagging for discard.", AgentLogger.Info);
-
-                            outBytes.InsertRange(flagStart, discardFlag);
-                        }
-                        else
-                        {
-                            this.logger.log("Score(" + score.ToString() + ") below threshold(" + this.settings.RejectThreshold.ToString() + "), passing.", AgentLogger.Info);
-                        }
+                        score = Double.Parse(new String(scoreBytes.Select(b => (Char)b).ToArray()).Trim());
                     }
-                    else
+                    catch(Exception e)
                     {
-                        this.logger.log("WARNING: Could not find end of score in message.", AgentLogger.Warning);
-
+                        this.logger.warning("Could not parse score. Exception:" + e.Message);
                     }
                 }
                 else
                 {
-                    this.logger.log("WARNING: Could not find start of score in message.", AgentLogger.Warning);
+                    this.logger.warning("Could not find end of score in message.");
                 }
 
-                Byte[] writeBytes = outBytes.ToArray();
+                // If we found a score check it and process it
+                if(score != null) {
+                    if (score >= this.settings.RejectThreshold)
+                    {
+                        this.logger.info("Score(" + score.ToString() + ") above threshold(" + this.settings.RejectThreshold.ToString() + "), flagging for discard.");
 
-                // Now write the data back to a message
+                        outBytes.InsertRange(flagStart, discardFlag);
+                    }
+                    else
+                    {
+                        this.logger.info("Score(" + score.ToString() + ") below threshold(" + this.settings.RejectThreshold.ToString() + "), passing.");
+                    }
+                }
+
+                // Write the message back to SpamAssassin
+                Byte[] writeBytes = outBytes.ToArray();
                 Stream messageOut = eodArgs.MailItem.GetMimeWriteStream();
-                this.logger.log("Writing message to MailItem. BYTES=" + writeBytes.Length.ToString(), AgentLogger.Debug);
+                this.logger.debug("Writing message to MailItem. BYTES=" + writeBytes.Length.ToString());
                 messageOut.Write(writeBytes, 0, writeBytes.Length);
-                this.logger.log("Closing MailItem buffer.", AgentLogger.Debug);
                 messageOut.Close();
 
             }
             catch (Exception e)
             {
-                this.logger.log("Exception Detected", AgentLogger.Fatal);
-                this.logger.log(e.ToString(), AgentLogger.Fatal);
+                this.logger.fatal("Exception Detected");
+                this.logger.fatal(e.ToString());
             }
-            this.logger.log("End of OnEndOfDataHandler", AgentLogger.Debug);
-            this.logger.log("----------------------------------------------", AgentLogger.Debug);
-            return;
+            finally
+            {
+                this.logger.flush();
+            }
+            
         }
+
+        /// <summary>
+        /// Reads a Stream completely into a byte array
+        /// </summary>
+        /// <param name="input">Stream to read from</param>
+        /// <returns></returns>
         public static byte[] ReadFully(Stream input)
         {
             byte[] buffer = new byte[16 * 1024];
