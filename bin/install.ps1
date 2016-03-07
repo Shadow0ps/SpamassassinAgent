@@ -32,14 +32,14 @@ Are you sure you want to proceed?"
 }
 
 # Download
-Invoke-WebRequest http://www.jam-software.com/spamassassin/SpamAssassinForWindows.zip -OutFile C:\Windows\Temp\SpamAssassinForWindows.zip
+Invoke-WebRequest http://www.jam-software.com/spamassassin/SpamAssassinForWindows-x86.zip -OutFile C:\Windows\Temp\SpamAssassinForWindows.zip
 
 # Create directory if it doesn't exist
 New-Item "C:\Program Files (x86)\SpamAssassin\" -type Directory
 
 # Unzip
 $shell = new-object -com shell.application
-$zip = $shell.NameSpace(ìC:\Windows\Temp\SpamAssassinForWindows.zipî)
+$zip = $shell.NameSpace(‚ÄúC:\Windows\Temp\SpamAssassinForWindows.zip‚Äù)
 foreach($item in $zip.items())
 {
     $shell.Namespace("C:\Program Files (x86)\SpamAssassin\").copyhere($item)
